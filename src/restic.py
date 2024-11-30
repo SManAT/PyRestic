@@ -175,6 +175,14 @@ class Restic:
         """Remove Lock files from Restic"""
         cmd = f'"{self.resticBin}" -r "{self.storagePath}" unlock -p "{self.resticPwd}"'
         self.runner.runCmd_with_Spinner(cmd, "Unlock Repository ")
+        res = self.runner.getStdErr()
+
+        if "Fatal: wrong password or no key found" in res:
+            self.term.print(f"{self.storagePath}")
+            self.term.print("Error: There is another Repository stored ...", "RED")
+            self.term.print("-exit-", "YELLOW")
+            sys.exit()
+
         self.term.print("done ...", "YELLOW")
 
     def backup(self, profile_name):
@@ -270,7 +278,7 @@ class Restic:
             self.profiles.showProfileInfos(new_name)
 
 
-@click.command(no_args_is_help=False)
+@click.command(no_args_is_help=True)
 @click.option(
     "--init",
     type=(str),
@@ -319,7 +327,7 @@ def start(backup, restore, check, help, init, stats, profiles):
     # debug
     # restic.profileManagement()
     #
-    # restic.check("profil")
+    # restic.init("profil")
     # sys.exit()
 
     if profiles:
