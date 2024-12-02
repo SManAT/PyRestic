@@ -30,7 +30,7 @@ class Configuration:
                 "password": f"{self.createRandomPassword()}",
                 "storage": os.path.abspath(os.path.join(self.rootDir, "..", "STORAGE")),
                 "include": ["**/*", "C:\\Test"],
-                "exclude": ["Thumbs.db", "*.iso", "node_modules\**", "AI\**"],
+                "exclude": ["Thumbs.db", "*.iso", "node_modules\**", "AI\**", ".lock*"],
             }
         }
         return config_dict
