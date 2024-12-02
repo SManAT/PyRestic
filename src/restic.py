@@ -158,8 +158,8 @@ class Restic:
         self.term.print(f"Initialze the repository [{profile_name}]")
 
         config = self.profiles.loadProfile(profile_name)
-        self.profiles.setConfig(config)
         if config is not False:
+            self.profiles.setConfig(config)
             self.createPwdFile()
             res = self._checkInit()
             if "repository does not exist" in res:
@@ -188,10 +188,11 @@ class Restic:
     def backup(self, profile_name):
         """do a restic backup"""
         config = self.profiles.loadProfile(profile_name)
-        self.profiles.setConfig(config)
 
-        self.term.print(f"Creating a backup [{profile_name}] with {self.profiles.getSnapshots()} snapshots")
         if config is not False:
+            self.profiles.setConfig(config)
+            self.term.print(f"Creating a backup [{profile_name}] with {self.profiles.getSnapshots()} snapshots")
+
             self.createPwdFile()
             if self.testRepoInit() is True:
                 # remove Lock
@@ -227,8 +228,8 @@ class Restic:
         self.term.print("Get statistics from Repository")
 
         config = self.profiles.loadProfile(profile_name)
-        self.profiles.setConfig(config)
         if config is not False:
+            self.profiles.setConfig(config)
             self.createPwdFile()
             if self.testRepoInit() is True:
                 # stats
@@ -243,8 +244,8 @@ class Restic:
         self.term.print(f"Check Repository: {profile_name}")
 
         config = self.profiles.loadProfile(profile_name)
-        self.profiles.setConfig(config)
         if config is not False:
+            self.profiles.setConfig(config)
             self.createPwdFile()
             if self.testRepoInit() is True:
                 # stats
@@ -278,7 +279,7 @@ class Restic:
             self.profiles.showProfileInfos(new_name)
 
 
-@click.command(no_args_is_help=True)
+@click.command(no_args_is_help=False)
 @click.option(
     "--init",
     type=(str),
@@ -327,8 +328,8 @@ def start(backup, restore, check, help, init, stats, profiles):
     # debug
     # restic.profileManagement()
     #
-    # restic.init("profil")
-    # sys.exit()
+    restic.backup("profilXX")
+    sys.exit()
 
     if profiles:
         restic.profileManagement()
