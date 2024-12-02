@@ -279,7 +279,7 @@ class Restic:
             self.profiles.showProfileInfos(new_name)
 
 
-@click.command(no_args_is_help=False)
+@click.command(no_args_is_help=True)
 @click.option(
     "--init",
     type=(str),
@@ -328,8 +328,8 @@ def start(backup, restore, check, help, init, stats, profiles):
     # debug
     # restic.profileManagement()
     #
-    restic.backup("profilXX")
-    sys.exit()
+    # restic.backup("profilXX")
+    # sys.exit()
 
     if profiles:
         restic.profileManagement()
