@@ -19,7 +19,6 @@ dependencies = [
     'setuptools',
     'build',
     'pyyaml',
-    'atexit',
     'click',
     'questionary',
 ]

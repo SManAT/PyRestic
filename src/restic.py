@@ -15,6 +15,15 @@ class Restic:
 
     def __init__(self):
         self.rootDir = Path(__file__).parent
+
+        self.term = TerminalColors()
+        self.term.set_BackgroundColor()
+
+        self.configFile = os.path.join(self.rootDir, "config.yml")
+        self.Configuration = Configuration(self.configFile)
+        # Basic check
+        self.checkForConfigFile()
+
         self.resticBin = self.getResticPath()
         self.resticPwd = os.path.normpath(os.path.join(self.rootDir, "bin", ".pwd"))
 
@@ -26,12 +35,6 @@ class Restic:
         self.runner.add_stdout_listener(self.on_stdout)
         self.runner.add_stderr_listener(self.on_stderr)
         self.runner.add_completion_listener(self.on_completion)
-
-        self.configFile = os.path.join(self.rootDir, "config.yml")
-        self.Configuration = Configuration(self.configFile)
-
-        self.term = TerminalColors()
-        self.term.set_BackgroundColor()
 
         self.configDict = self.load_yml()
         self.profiles = Profiles(self.Configuration)
@@ -56,6 +59,11 @@ class Restic:
     def exit_handler(self):
         """do something on sys.exit()"""
         pass
+
+    def checkForConfigFile(self):
+        """Basic check for config file"""
+        if os.path.exists(self.configFile) is False:
+            self.createEmptyConfigFile()
 
     def load_yml(self):
         """Load the yaml file config.yml"""
@@ -279,7 +287,7 @@ class Restic:
             self.profiles.showProfileInfos(new_name)
 
 
-@click.command(no_args_is_help=True)
+@click.command(no_args_is_help=False)
 @click.option(
     "--init",
     type=(str),
@@ -334,24 +342,28 @@ def start(backup, restore, check, help, init, stats, profiles):
     if profiles:
         restic.profileManagement()
 
-    if init:
+    elif init:
         profile_name = init
         restic.init(profile_name)
 
-    if backup:
+    elif backup:
         profile_name = backup
         restic.backup(profile_name)
 
-    if help:
+    elif help:
         restic.help()
 
-    if stats:
+    elif stats:
         profile_name = stats
         restic.stats(profile_name)
 
-    if check:
+    elif check:
         profile_name = check
         restic.check(profile_name)
+    else:
+        # Display Help Informations and Usage
+        ctx = click.get_current_context()
+        click.echo(ctx.get_help())
 
 
 if __name__ == "__main__":
