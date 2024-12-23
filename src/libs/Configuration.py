@@ -3,6 +3,7 @@ import logging
 import random
 import os
 from pathlib import Path
+from libs.OSDetector import OSDetector
 
 
 class Configuration:
@@ -24,15 +25,40 @@ class Configuration:
     def getDefaultConfig(self, profileName=None):
         if profileName is None:
             profileName = "default"
-        config_dict = {
-            f"{profileName}": {
-                "snapshots": 4,
-                "password": f"{self.createRandomPassword()}",
-                "storage": os.path.abspath(os.path.join(self.rootDir, "..", "STORAGE")),
-                "include": ["**/*", "C:\\Test"],
-                "exclude": ["Thumbs.db", "*.iso", "node_modules\**", "AI\**", ".lock*"],
+
+        if OSDetector.is_windows():
+            config_dict = {
+                f"{profileName}": {
+                    "snapshots": 4,
+                    "password": f"{self.createRandomPassword()}",
+                    "storage": os.path.abspath(os.path.join(self.rootDir, "..", "STORAGE")),
+                    "include": ["**/*", "C:\\Test"],
+                    "exclude": ["Thumbs.db", "*.iso", "node_modules\**", "AI\**", ".lock*"],
+                }
             }
-        }
+        if OSDetector.is_linux():
+            config_dict = {
+                f"{profileName}": {
+                    "snapshots": 4,
+                    "password": f"{self.createRandomPassword()}",
+                    "storage": "/backup/restic/storage",
+                    "include": ["**/*", "/root/", "/var/www"],
+                    "exclude": [
+                        "Thumbs.db",
+                        "*.iso",
+                        "node_modules\**",
+                        ".lock*",
+                        "/root/.ansible/**",
+                        "/root/.cache/**",
+                        "/root/.composer/**",
+                        "/root/.config/**",
+                        "/root/.cpan/**",
+                        "/root/.npm/**",
+                        "/root/.local/**",
+                        "/root/snap/**",
+                    ],
+                }
+            }
         return config_dict
 
     def getConfigFilePath(self):
