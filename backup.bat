@@ -1,1 +1,1 @@
-.venv/Scripts/python src/restic.py --backup
+.venv\Scripts\python src\restic.py --backup default
