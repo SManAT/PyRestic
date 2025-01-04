@@ -15,6 +15,8 @@ class CmdRunner:
     def __init__(self):
         self._stderr = ""
         self._stdout = ""
+        self._stdout_list = []
+        self._stderr_list = []
         self.pid = None
         self._thread = None
         self._finished = threading.Event()
@@ -122,6 +124,14 @@ class CmdRunner:
                 print(line.strip())
             self._buffered_output.clear()
 
+    def getStdOutLines(self):
+        """get StdOut in an list"""
+        return self._stdout_list
+
+    def getStdErrLines(self):
+        """get StdOut in an list"""
+        return self._stderr_list
+
     def _execute_command(self, cmd, is_ps=False):
         self._stderr = ""
         self._stdout = ""
@@ -137,12 +147,14 @@ class CmdRunner:
             for line in iter(proc.stderr.readline, b""):
                 decoded_line = line.decode("utf-8", "ignore")
                 self._stderr += decoded_line
+                self._stderr_list.append(decoded_line)
                 self._notify_stderr(decoded_line)
 
         def read_stdout():
             for line in iter(proc.stdout.readline, b""):
                 decoded_line = line.decode("utf-8", "ignore")
                 self._stdout += decoded_line
+                self._stdout_list.append(decoded_line)
                 self._notify_stdout(decoded_line)
 
         # Create and start threads for reading stdout and stderr

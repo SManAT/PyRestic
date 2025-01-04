@@ -2,6 +2,7 @@ import atexit
 import click
 import os
 import sys
+import questionary
 from libs.TerminalColors import TerminalColors
 from libs.Configuration import Configuration
 from libs.CmdRunner import CmdRunner
@@ -386,6 +387,78 @@ class Restic:
             self.profiles.setConfigDict(self.configDict)
             self.profiles.showProfileInfos(new_name)
 
+    def extract_backup_info(self, input_list):
+        """get desired infos"""
+        result = []
+        current_entry = None
+
+        for line in input_list:
+            # Skip empty lines and header/separator lines
+            if not line.strip():
+                continue
+
+            # If line starts with an ID (8 hex characters)
+            if line[:8].strip() and all(c in "0123456789abcdef" for c in line[:8].strip()):
+                parts = line.split()
+                if len(parts) >= 7:  # Make sure we have enough parts
+                    backup_id = parts[0]
+                    date = f"{parts[1]} {parts[2]}"
+                    size = parts[-2] + " " + parts[-1]
+                    current_entry = {"id": backup_id, "date": date, "size": size}
+                    result.append(current_entry)
+
+        return result
+
+    def loadSnapshots(self, config):
+        """get all snapshots from Repository"""
+        self.createPwdFile()
+        if self.testRepoInit() is True:
+            # stats
+            cmd = f'"{self.resticBin}" snapshots -r "{self.storagePath}" -p "{self.resticPwd}"'
+            cmd = self.modifyforOS(cmd)
+            runner = CmdRunner()
+            runner.runCmd(cmd)
+
+            lines = runner.getStdOutLines()
+            lines = self.extract_backup_info(lines)
+
+            self.term.print("done ...", "YELLOW")
+
+    def get_desktop_path(self):
+        """Get the user's Desktop path"""
+        # Try standard user profile desktop
+        desktop = os.path.join(os.getenv("USERPROFILE"), "Desktop")
+        if os.path.exists(desktop):
+            return desktop
+
+    def path_exists(self, path):
+        return os.path.exists(path)
+
+    def restore(self, profile_name="default"):
+        """restore a snapshot"""
+
+        self.term.print(f"Restoring snapshot from Repository: {profile_name}")
+
+        path = questionary.path("What's the path to restore the Repository to (use TAB)?", default=self.get_desktop_path(), validate=self.path_exists, only_directories=True).ask()
+
+        config = self.profiles.loadProfile(profile_name)
+        if config is not False:
+            self.profiles.setConfig(config)
+            self.createPwdFile()
+            if self.testRepoInit() is True:
+                # load snapshots
+                self.loadSnapshots(config)
+
+                # restic -r <path> restore <id>  --target /tmp/restore-work -p $PWDFILE
+
+                # stats
+                cmd = f'"{self.resticBin}" snapshots -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = self.modifyforOS(cmd)
+                runner = CmdRunner_Terminal()
+                # runner.run_command(cmd)
+
+                self.term.print("done ...", "YELLOW")
+
 
 @click.command(no_args_is_help=False)
 @click.option(
@@ -448,8 +521,9 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     # debug
     # restic.profileManagement()
     #
-    # restic.list("profil")
-    # sys.exit()
+
+    restic.restore("profil")
+    sys.exit()
 
     if profiles:
         restic.profileManagement()
@@ -476,6 +550,10 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     elif list:
         profile_name = snapshots
         restic.list(profile_name)
+
+    elif restore:
+        profile_name = snapshots
+        restic.restore(profile_name)
 
     elif check:
         profile_name = check
