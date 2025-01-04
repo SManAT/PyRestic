@@ -14,6 +14,8 @@ from pathlib import Path
 
 class Restic:
 
+    output_cache = []
+
     def __init__(self):
         self.rootDir = Path(__file__).parent
 
@@ -292,6 +294,75 @@ class Restic:
 
                 self.term.print("done ...", "YELLOW")
 
+    def snapshots(self, profile_name="default"):
+        """list all snapshots"""
+        self.term.print(f"Snapshots stored in Repository: {profile_name}")
+
+        config = self.profiles.loadProfile(profile_name)
+        if config is not False:
+            self.profiles.setConfig(config)
+            self.createPwdFile()
+            if self.testRepoInit() is True:
+                # stats
+                cmd = f'"{self.resticBin}" snapshots -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = self.modifyforOS(cmd)
+                runner = CmdRunner_Terminal()
+                runner.run_command(cmd)
+
+                self.term.print("done ...", "YELLOW")
+
+    def process_output(self, line):
+        # Process each line as it comes
+        self.term.print(line.strip())
+        self.output_cache.append(line.strip())
+
+    def list(self, profile_name="default"):
+        """list all snapshots"""
+        self.term.print(f"List all files stored in Repository: {profile_name}")
+
+        config = self.profiles.loadProfile(profile_name)
+        if config is not False:
+            self.profiles.setConfig(config)
+            self.createPwdFile()
+            if self.testRepoInit() is True:
+                # stats
+                cmd = f'"{self.resticBin}" ls latest -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = self.modifyforOS(cmd)
+
+                runner = CmdRunner()
+                runner.add_stdout_listener(self.process_output)
+                runner.runCmd(cmd)
+
+                # store to file
+                filename = os.path.normpath(os.path.join(self.rootDir, "..", "files_stored.txt"))
+                cache = self.reduce_list(self.output_cache)
+                with open(filename, "w", encoding="utf-8") as fh:
+                    fh.write(f"All filenames are deleted, showing only directories...\n\n")
+                    fh.close()
+
+                try:
+                    with open(filename, "w", encoding="utf-8") as fh:
+                        for line in cache:
+                            fh.write(f"{line}\n")
+                    fh.close()
+                except UnicodeEncodeError:
+                    with open(filename, "w", encoding="utf-8-sig") as fh:  # Try with BOM
+                        for line in cache:
+                            fh.write(f"{line}\n")
+                    fh.close()
+
+                self.term.print("done ...", "YELLOW")
+                self.term.print(f"Output stored to: {filename}", "YELLOW")
+
+    def reduce_list(self, paths):
+        """delete filenames and reduce"""
+        paths = [path.rstrip("/") for path in paths]  # Remove trailing slashes
+        unique_dirs = set()
+        unique_dirs = {str(Path(path).parent) if Path(path).is_file() else path for path in paths}
+
+        # Print sorted results
+        return sorted(unique_dirs)
+
     def profileManagement(self):
         a = self.profiles.MainMenue()
         if a == "profile-list":
@@ -342,10 +413,22 @@ class Restic:
     help="Check a Backup TEXT=Profile name",
 )
 @click.option(
+    "--snapshots",
+    type=(str),
+    required=False,
+    help="List all snapshots in repository TEXT=Profile name",
+)
+@click.option(
+    "--list",
+    type=(str),
+    required=False,
+    help="List all stored files in repository, and saves it to a text file, TEXT=Profile name",
+)
+@click.option(
     "--stats",
     type=(str),
     required=False,
-    help="Get some statistic about the Repository TEXT=Profile name",
+    help="Get some statistic about the repository TEXT=Profile name",
 )
 @click.option(
     "--profiles",
@@ -359,14 +442,14 @@ class Restic:
     is_flag=True,
     help="Display some Informations about a Backup TEXT=Profile name",
 )
-def start(backup, restore, check, help, init, stats, profiles):
+def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     restic = Restic()
 
     # debug
     # restic.profileManagement()
     #
-    # restic.check()
-    # sys.exit()
+    restic.list("profil")
+    sys.exit()
 
     if profiles:
         restic.profileManagement()
@@ -385,6 +468,14 @@ def start(backup, restore, check, help, init, stats, profiles):
     elif stats:
         profile_name = stats
         restic.stats(profile_name)
+
+    elif snapshots:
+        profile_name = snapshots
+        restic.snapshots(profile_name)
+
+    elif list:
+        profile_name = snapshots
+        restic.list(profile_name)
 
     elif check:
         profile_name = check

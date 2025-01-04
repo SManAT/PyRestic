@@ -33,7 +33,7 @@ class Configuration:
                     "password": f"{self.createRandomPassword()}",
                     "storage": os.path.abspath(os.path.join(self.rootDir, "..", "STORAGE")),
                     "include": ["**/*", "C:\\Test"],
-                    "exclude": ["Thumbs.db", "*.iso", "node_modules\**", "AI\**", ".lock*"],
+                    "exclude": ["Thumbs.db", "*.iso", "**/node_modules/**", "AI/**", ".lock*", "GitHub"],
                 }
             }
         if OSDetector.is_linux():
@@ -46,7 +46,7 @@ class Configuration:
                     "exclude": [
                         "Thumbs.db",
                         "*.iso",
-                        "node_modules\**",
+                        "**/node_modules/**",
                         ".lock*",
                         "/root/.ansible/**",
                         "/root/.cache/**",

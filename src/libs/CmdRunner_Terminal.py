@@ -2,6 +2,8 @@ import subprocess
 import os
 from typing import Optional, Union, List, Callable
 
+""" Runs a command in Terminal, and blocks until the command has finished """
+
 
 class CmdRunner_Terminal:
     def __init__(self, working_directory: Optional[str] = None):

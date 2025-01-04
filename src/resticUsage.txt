@@ -1,5 +1,5 @@
 1. List all Snapshots
-restic -r <path> snapshots -p /root/.ssh/restic.pwd
+restic snapshots -r <path> -p /root/.ssh/restic.pwd
 
 Win: <path> no trailing \ !! path with spaces inside "..."
 
