@@ -448,8 +448,8 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     # debug
     # restic.profileManagement()
     #
-    restic.list("profil")
-    sys.exit()
+    # restic.list("profil")
+    # sys.exit()
 
     if profiles:
         restic.profileManagement()
