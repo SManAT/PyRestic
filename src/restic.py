@@ -3,6 +3,8 @@ import click
 import os
 import sys
 import questionary
+import re
+from datetime import datetime
 from libs.TerminalColors import TerminalColors
 from libs.Configuration import Configuration
 from libs.CmdRunner import CmdRunner
@@ -409,6 +411,12 @@ class Restic:
 
         return result
 
+    def extract_id(self, line):
+        # Pattern for ID, date, and size
+        pattern = r"id=([a-z0-9]{8,})"  # matches 8 or more characters
+        match = re.search(pattern, line)
+        return match.group(1) if match else None
+
     def loadSnapshots(self, config):
         """get all snapshots from Repository"""
         self.createPwdFile()
@@ -421,8 +429,18 @@ class Restic:
 
             lines = runner.getStdOutLines()
             lines = self.extract_backup_info(lines)
+            snappys = []
+            for l in lines:
+                dt = datetime.strptime(l["date"], "%Y-%m-%d %H:%M:%S")
+                date = dt.strftime("%d.%m.%Y-%H:%M")
 
-            self.term.print("done ...", "YELLOW")
+                sstr = f"{date}: id={l['id']} ({l['size']})"
+                snappys.append(sstr)
+
+                snappys = list(reversed(snappys))
+
+            id = questionary.select("Choose a snapshot to restore?", choices=snappys).ask()
+            return self.extract_id(id)
 
     def get_desktop_path(self):
         """Get the user's Desktop path"""
@@ -436,10 +454,8 @@ class Restic:
 
     def restore(self, profile_name="default"):
         """restore a snapshot"""
-
         self.term.print(f"Restoring snapshot from Repository: {profile_name}")
-
-        path = questionary.path("What's the path to restore the Repository to (use TAB)?", default=self.get_desktop_path(), validate=self.path_exists, only_directories=True).ask()
+        self.term.print("Loading snaphots ...\n", "YELLOW")
 
         config = self.profiles.loadProfile(profile_name)
         if config is not False:
@@ -447,17 +463,21 @@ class Restic:
             self.createPwdFile()
             if self.testRepoInit() is True:
                 # load snapshots
-                self.loadSnapshots(config)
+                id = self.loadSnapshots(config)
+                target = questionary.path("What's the path to restore the Repository to (use TAB)?", default=self.get_desktop_path(), validate=self.path_exists, only_directories=True).ask()
 
-                # restic -r <path> restore <id>  --target /tmp/restore-work -p $PWDFILE
+                answ = questionary.confirm("Are you sure?").ask()
+                if answ is True:
+                    # restic -r <path> restore <id>  --target /tmp/restore-work -p $PWDFILE
+                    cmd = f'"{self.resticBin}" -r "{self.storagePath}" restore {id} --target {target} -p "{self.resticPwd}"'
+                    print(cmd)
+                    cmd = self.modifyforOS(cmd)
+                    runner = CmdRunner_Terminal()
+                    runner.run_command(cmd)
 
-                # stats
-                cmd = f'"{self.resticBin}" snapshots -r "{self.storagePath}" -p "{self.resticPwd}"'
-                cmd = self.modifyforOS(cmd)
-                runner = CmdRunner_Terminal()
-                # runner.run_command(cmd)
-
-                self.term.print("done ...", "YELLOW")
+                    self.term.print("done ...", "YELLOW")
+                else:
+                    self.term.print("Aborted ...", "YELLOW")
 
 
 @click.command(no_args_is_help=False)
@@ -522,8 +542,8 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     # restic.profileManagement()
     #
 
-    restic.restore("profil")
-    sys.exit()
+    # restic.restore("profil")
+    # sys.exit()
 
     if profiles:
         restic.profileManagement()
@@ -548,11 +568,11 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
         restic.snapshots(profile_name)
 
     elif list:
-        profile_name = snapshots
+        profile_name = list
         restic.list(profile_name)
 
     elif restore:
-        profile_name = snapshots
+        profile_name = restore
         restic.restore(profile_name)
 
     elif check:
