@@ -434,10 +434,8 @@ class Restic:
         self.term.print(f"Restoring snapshot from Repository: {profile_name}")
         self.term.print("Loading snaphots ...\n", "YELLOW")
 
-        config = self.profiles.loadProfile(profile_name)
+        config = self.profiles.loadProfile_and_setVariables(profile_name)
         if config is not False:
-            self.profiles.setConfig(config)
-            self.createPwdFile()
             if self.testRepoInit() is True:
                 # load snapshots
                 id = self.loadSnapshots(config)
@@ -519,8 +517,8 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     # restic.profileManagement()
     #
 
-    restic.backup("media")
-    sys.exit()
+    # restic.backup("media")
+    # sys.exit()
 
     if profiles:
         restic.profileManagement()
