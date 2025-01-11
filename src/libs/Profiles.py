@@ -121,6 +121,7 @@ class Profiles:
         self.createDir(self.storagePath)
         self.createPwdFile()
         self.createIncludeExcludeFiles(self.includeFile, self.excludeFile)
+        return self.config
 
     def createPwdFile(self):
         """create a password file from config"""
