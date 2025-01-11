@@ -229,7 +229,7 @@ class Restic:
                 self.term.print("done ...", "YELLOW")
 
                 # keep n snapshots
-                snapshots = self.config["snapshots"]
+                snapshots = config["snapshots"]
                 cmd = f'"{self.resticBin}" -r "{self.profiles.getStoragePath()}" forget --keep-last {snapshots} -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
 
