@@ -171,8 +171,10 @@ class Profiles:
         # append default Config to existing config
         config_dict = self.Configuration.getDefaultConfig(pname)
         new_config = self.Configuration.appendConfigFile(config_dict)
-        self.Configuration.save_config(new_config)
+        self.Configuration.save_config(new_config, self.Configuration.getConfigFilePath())
         self.term.print(f"Profile [{pname}] created ...", "yellow")
+        # neu einlesen
+        self.configDict = self.Configuration.load_yml()
         self.showProfileInfos(pname)
 
     def showProfiles_Infos(self):
