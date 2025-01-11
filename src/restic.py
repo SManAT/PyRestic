@@ -46,14 +46,10 @@ class Restic:
         self.runner.add_completion_listener(self.on_completion)
 
         self.configDict = self.load_yml()
-        self.profiles = Profiles(self.Configuration)
+        self.profiles = Profiles(self.Configuration, self.includeFile, self.excludeFile, self.resticPwd)
         firstProfile = self.profiles.getFirstProfile()
         # load first profile
-        self.config = self.profiles.loadProfile(firstProfile)
-
-        self.storagePath = os.path.normpath(self.config["storage"])
-        # exists?
-        self.createDir(self.storagePath)
+        self.config = self.profiles.loadProfile_and_setVariables(firstProfile)
 
         # catch terminating Signal
         atexit.register(self.exit_handler)
@@ -141,13 +137,6 @@ class Restic:
         print("Command completed!")
 
     # Callback Wrapper --------------
-
-    def createPwdFile(self):
-        """create a password file from config"""
-        fh = open(os.path.join("src", "bin", ".pwd"), "w")
-        fh.write(self.config["password"])
-        fh.close()
-
     def modifyforOS(self, cmd):
         """win/unix cmd"""
         if OSDetector.is_windows():
@@ -158,7 +147,7 @@ class Restic:
         return cmd
 
     def _checkInit(self):
-        cmd = f'"{self.resticBin}" -r "{self.storagePath}" -p "{self.resticPwd}" cat config'
+        cmd = f'"{self.resticBin}" -r "{self.profiles.getStoragePath()}" -p "{self.resticPwd}" cat config'
         cmd = self.modifyforOS(cmd)
         self.runner.runCmd_Silent(cmd)
         return self.runner.getStdErr()
@@ -191,31 +180,29 @@ class Restic:
         """Initialze the repository"""
         self.term.print(f"Initialze the repository [{profile_name}]")
 
-        config = self.profiles.loadProfile(profile_name)
+        config = self.profiles.loadProfile_and_setVariables(profile_name)
         if config is not False:
-            self.profiles.setConfig(config)
-            self.createPwdFile()
             res = self._checkInit()
 
             if ("repository does not exist" in res) or ("Fatal: unable to open config file" in res):
-                cmd = f'"{self.resticBin}" init -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = f'"{self.resticBin}" init -r "{self.profiles.getStoragePath()}" -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
                 self.runner.runCmd_with_Spinner(cmd, "Initializing ")
                 self.term.print("Repository has been initialized ...", "YELLOW")
-                self.term.print(f"Path: {self.storagePath}")
+                self.term.print(f"Path: {self.profiles.getStoragePath()}")
             else:
                 self.term.print("Repository is allready initialized ...", "RED")
                 self.term.print("-exit-", "YELLOW")
 
     def removeLocks(self):
         """Remove Lock files from Restic"""
-        cmd = f'"{self.resticBin}" -r "{self.storagePath}" unlock -p "{self.resticPwd}"'
+        cmd = f'"{self.resticBin}" -r "{self.profiles.getStoragePath()}" unlock -p "{self.resticPwd}"'
         cmd = self.modifyforOS(cmd)
         self.runner.runCmd_with_Spinner(cmd, "Unlock Repository ")
         res = self.runner.getStdErr()
 
         if "Fatal: wrong password or no key found" in res:
-            self.term.print(f"{self.storagePath}")
+            self.term.print(f"{self.profiles.getStoragePath()}")
             self.term.print("Error: There is another Repository stored ...", "RED")
             self.term.print("-exit-", "YELLOW")
             sys.exit()
@@ -224,21 +211,17 @@ class Restic:
 
     def backup(self, profile_name="default"):
         """do a restic backup"""
-        config = self.profiles.loadProfile(profile_name)
+        config = self.profiles.loadProfile_and_setVariables(profile_name)
 
         if config is not False:
-            self.profiles.setConfig(config)
             self.term.print(f"Creating a backup [{profile_name}] with {self.profiles.getSnapshots()} snapshots")
-
-            self.createPwdFile()
             if self.testRepoInit() is True:
                 # remove Lock
                 self.removeLocks()
 
-                self.profiles.createIncludeExcludeFiles(self.includeFile, self.excludeFile)
-
                 # backup
-                cmd = f'"{self.resticBin}" -r "{self.storagePath}" backup --files-from "{self.includeFile}" --exclude-file "{self.excludeFile}" -p "{self.resticPwd}" -v'
+                cmd = f'"{self.resticBin}" -r "{self.profiles.getStoragePath()}" backup --files-from "{self.includeFile}" --exclude-file "{self.excludeFile}" -p "{self.resticPwd}" -v'
+                print(cmd)
                 cmd = self.modifyforOS(cmd)
                 runner = CmdRunner_Terminal()
                 runner.run_command(cmd)
@@ -247,14 +230,14 @@ class Restic:
 
                 # keep n snapshots
                 snapshots = self.config["snapshots"]
-                cmd = f'"{self.resticBin}" -r "{self.storagePath}" forget --keep-last {snapshots} -p "{self.resticPwd}"'
+                cmd = f'"{self.resticBin}" -r "{self.profiles.getStoragePath()}" forget --keep-last {snapshots} -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
 
                 self.runner.runCmd_with_Spinner(cmd, "Maintaince Snapshots  ")
                 self.term.print("done ...", "YELLOW")
 
                 # free space
-                cmd = f'"{self.resticBin}" -r "{self.storagePath}" prune -p "{self.resticPwd}"'
+                cmd = f'"{self.resticBin}" -r "{self.profiles.getStoragePath()}" prune -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
                 self.runner.runCmd(cmd, "Maintaince Snapshots  ")
                 self.term.print("done ...", "YELLOW")
@@ -267,13 +250,11 @@ class Restic:
         """Statistics about Repo"""
         self.term.print("Get statistics from Repository")
 
-        config = self.profiles.loadProfile(profile_name)
+        config = self.profiles.loadProfile_and_setVariables(profile_name)
         if config is not False:
-            self.profiles.setConfig(config)
-            self.createPwdFile()
             if self.testRepoInit() is True:
                 # stats
-                cmd = f'"{self.resticBin}" stats -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = f'"{self.resticBin}" stats -r "{self.profiles.getStoragePath()}" -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
                 runner = CmdRunner_Terminal()
                 runner.run_command(cmd)
@@ -284,13 +265,11 @@ class Restic:
         """Check s Repo"""
         self.term.print(f"Check Repository: {profile_name}")
 
-        config = self.profiles.loadProfile(profile_name)
+        config = self.profiles.loadProfile_and_setVariables(profile_name)
         if config is not False:
-            self.profiles.setConfig(config)
-            self.createPwdFile()
             if self.testRepoInit() is True:
                 # stats
-                cmd = f'"{self.resticBin}" check -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = f'"{self.resticBin}" check -r "{self.profiles.getStoragePath()}" -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
                 runner = CmdRunner_Terminal()
                 runner.run_command(cmd)
@@ -301,13 +280,11 @@ class Restic:
         """list all snapshots"""
         self.term.print(f"Snapshots stored in Repository: {profile_name}")
 
-        config = self.profiles.loadProfile(profile_name)
+        config = self.profiles.loadProfile_and_setVariables(profile_name)
         if config is not False:
-            self.profiles.setConfig(config)
-            self.createPwdFile()
             if self.testRepoInit() is True:
                 # stats
-                cmd = f'"{self.resticBin}" snapshots -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = f'"{self.resticBin}" snapshots -r "{self.profiles.getStoragePath()}" -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
                 runner = CmdRunner_Terminal()
                 runner.run_command(cmd)
@@ -329,7 +306,7 @@ class Restic:
             self.createPwdFile()
             if self.testRepoInit() is True:
                 # stats
-                cmd = f'"{self.resticBin}" ls latest -r "{self.storagePath}" -p "{self.resticPwd}"'
+                cmd = f'"{self.resticBin}" ls latest -r "{self.profiles.getStoragePath()}" -p "{self.resticPwd}"'
                 cmd = self.modifyforOS(cmd)
 
                 runner = CmdRunner()
@@ -422,7 +399,7 @@ class Restic:
         self.createPwdFile()
         if self.testRepoInit() is True:
             # stats
-            cmd = f'"{self.resticBin}" snapshots -r "{self.storagePath}" -p "{self.resticPwd}"'
+            cmd = f'"{self.resticBin}" snapshots -r "{self.profiles.getStoragePath()}" -p "{self.resticPwd}"'
             cmd = self.modifyforOS(cmd)
             runner = CmdRunner()
             runner.runCmd(cmd)
@@ -469,7 +446,7 @@ class Restic:
                 answ = questionary.confirm("Are you sure?").ask()
                 if answ is True:
                     # restic -r <path> restore <id>  --target /tmp/restore-work -p $PWDFILE
-                    cmd = f'"{self.resticBin}" -r "{self.storagePath}" restore {id} --target {target} -p "{self.resticPwd}"'
+                    cmd = f'"{self.resticBin}" -r "{self.profiles.getStoragePath()}" restore {id} --target {target} -p "{self.resticPwd}"'
                     print(cmd)
                     cmd = self.modifyforOS(cmd)
                     runner = CmdRunner_Terminal()
@@ -542,8 +519,8 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     # restic.profileManagement()
     #
 
-    # restic.restore("profil")
-    # sys.exit()
+    restic.backup("media")
+    sys.exit()
 
     if profiles:
         restic.profileManagement()

@@ -1,5 +1,6 @@
 import questionary
 import logging
+import os
 from questionary.prompts.common import Separator
 from questionary import Style
 
@@ -44,9 +45,14 @@ class Profiles:
         ]
     )
 
-    def __init__(self, Configuration):
+    def __init__(self, Configuration, includeFile, excludeFile, resticPwd):
         self.logger = logging.getLogger(__name__)
         self.Configuration = Configuration
+
+        self.includeFile = includeFile
+        self.excludeFile = excludeFile
+        self.resticPwd = resticPwd
+
         self.configDict = self.Configuration.load_yml()
         # actual config data
         self.config = None
@@ -99,11 +105,40 @@ class Profiles:
         """get all profile names"""
         return self.configDict.keys()
 
+    def createDir(self, path):
+        """create dir if it not exists"""
+        try:
+            os.makedirs(path, exist_ok=True)
+            # print(f"Successfully created path: {path}")
+        except Exception as e:
+            print(f"Error creating path: {str(e)}")
+
+    def loadProfile_and_setVariables(self, profile_name):
+        """load config for a profile an set variables"""
+        self.config = self._loadProfile(profile_name)
+        self.storagePath = os.path.normpath(self.config["storage"])
+        # exists?
+        self.createDir(self.storagePath)
+        self.createPwdFile()
+        self.createIncludeExcludeFiles(self.includeFile, self.excludeFile)
+
+    def createPwdFile(self):
+        """create a password file from config"""
+        fh = open(os.path.join("src", "bin", ".pwd"), "w")
+        fh.write(self.config["password"])
+        fh.close()
+
     def getSnapshots(self):
         """get all profile names"""
         dict_items = self.config.items()
         data = dict(dict_items)
         return data["snapshots"]
+
+    def getStoragePath(self):
+        """get path for profile"""
+        dict_items = self.config.items()
+        data = dict(dict_items)
+        return data["storage"]
 
     def setConfig(self, config):
         """set actual config data"""
@@ -117,7 +152,7 @@ class Profiles:
         self.configDict = {}
         self.configDict.update(new_config)
 
-    def loadProfile(self, profile):
+    def _loadProfile(self, profile):
         """
         load all data from a specific profile
         :param profile: the name of the profile
