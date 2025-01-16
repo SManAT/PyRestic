@@ -141,3 +141,5 @@ src/bin/exclude.txt
 src/bin/.pwd
 files_stored.txt
 2Do
+src/configSH.yml
+src/configCH.yml
