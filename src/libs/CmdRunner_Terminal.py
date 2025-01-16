@@ -36,10 +36,9 @@ class CmdRunner_Terminal:
             print(f"Command failed with return code {e.returncode}")
             if self.on_complete_callback:
                 self.on_complete_callback(e.returncode)
-            raise
+
         except Exception as e:
             print(f"Failed to execute command: {e}")
-            raise
 
     def close(self):
         """Cleanup method (kept for compatibility)"""
