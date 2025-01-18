@@ -21,6 +21,9 @@ dependencies = [
     'pyyaml',
     'click',
     'questionary',
+    'requests',
+    'zipfile',
+    'typing',
 ]
 
 [build-system]
