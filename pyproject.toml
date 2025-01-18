@@ -22,8 +22,8 @@ dependencies = [
     'click',
     'questionary',
     'requests',
-    'zipfile',
     'typing',
+    'tqdm',
 ]
 
 [build-system]
