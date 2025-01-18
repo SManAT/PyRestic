@@ -11,6 +11,7 @@ from libs.CmdRunner import CmdRunner
 from libs.CmdRunner_Terminal import CmdRunner_Terminal
 from libs.Profiles import Profiles
 from libs.OSDetector import OSDetector
+from libs.GitHub import GitHub, Platform, Architecture
 
 from pathlib import Path
 
@@ -27,17 +28,21 @@ class Restic:
 
         self.configFile = os.path.join(self.rootDir, "config.yml")
         self.Configuration = Configuration(self.configFile)
-        # Basic check
-        self.checkForConfigFile()
 
         # Dirs?
-        self.createDir(os.path.join(self.rootDir, "bin"))
+        self.binPath = os.path.join(self.rootDir, "bin")
+        self.createDir(self.binPath)
 
         self.resticBin = self.getResticPath()
-        self.resticPwd = os.path.normpath(os.path.join(self.rootDir, "bin", ".pwd"))
+        self.resticPwd = os.path.normpath(os.path.join(self.binPath, ".pwd"))
 
-        self.includeFile = os.path.normpath(os.path.join(self.rootDir, "bin", "include.txt"))
-        self.excludeFile = os.path.normpath(os.path.join(self.rootDir, "bin", "exclude.txt"))
+        self.includeFile = os.path.normpath(os.path.join(self.binPath, "include.txt"))
+        self.excludeFile = os.path.normpath(os.path.join(self.binPath, "exclude.txt"))
+
+        # check for WIN Binary of restic
+        self.checkBinFileRestic()
+        # Basic check
+        self.checkForConfigFile()
 
         self.runner = CmdRunner()
         # connect Callback events
@@ -95,11 +100,14 @@ class Restic:
                             data.append(os.path.join(directory, child.name))
         return data
 
-    def getResticPath(self):
+    def getResticPath(self) -> str | None:
         """get path to exe file"""
         if OSDetector.is_windows():
-            files = self.search_files_in_dir(os.path.join(self.rootDir, "bin/"), [".exe"])
-            return os.path.normpath(os.path.join(self.rootDir, files[0]))
+            try:
+                files = self.search_files_in_dir(self.binPath, [".exe"])
+                return os.path.normpath(os.path.join(self.rootDir, files[0]))
+            except Exception:
+                return None
         if OSDetector.is_linux():
             return "restic"
 
@@ -238,7 +246,7 @@ class Restic:
                 self.term.print("done ...", "YELLOW")
 
                 # free space
-                cmd = self.createCmd(f"prune")
+                cmd = self.createCmd("prune")
 
                 self.runner.runCmd(cmd, "Maintaince Snapshots  ")
                 self.term.print("done ...", "YELLOW")
@@ -254,7 +262,7 @@ class Restic:
         if config is not False:
             if self.testRepoInit() is True:
                 # stats
-                cmd = self.createCmd(f"stats")
+                cmd = self.createCmd("stats")
                 runner = CmdRunner_Terminal()
                 runner.run_command(cmd)
 
@@ -268,7 +276,7 @@ class Restic:
         if config is not False:
             if self.testRepoInit() is True:
                 # stats
-                cmd = self.createCmd(f"check")
+                cmd = self.createCmd("check")
                 runner = CmdRunner_Terminal()
                 runner.run_command(cmd)
 
@@ -282,7 +290,7 @@ class Restic:
         if config is not False:
             if self.testRepoInit() is True:
                 # stats
-                cmd = self.createCmd(f"snapshots")
+                cmd = self.createCmd("snapshots")
                 runner = CmdRunner_Terminal()
                 runner.run_command(cmd)
 
@@ -301,7 +309,7 @@ class Restic:
         if config is not False:
             if self.testRepoInit() is True:
                 # stats
-                cmd = self.createCmd(f"ls latest")
+                cmd = self.createCmd("ls latest")
 
                 runner = CmdRunner()
                 runner.add_stdout_listener(self.process_output)
@@ -311,7 +319,7 @@ class Restic:
                 filename = os.path.normpath(os.path.join(self.rootDir, "..", "files_stored.txt"))
                 cache = self.reduce_list(self.output_cache)
                 with open(filename, "w", encoding="utf-8") as fh:
-                    fh.write(f"All filenames are deleted, showing only directories...\n\n")
+                    fh.write("All filenames are deleted, showing only directories...\n\n")
                     fh.close()
 
                 try:
@@ -392,7 +400,7 @@ class Restic:
         """get all snapshots from Repository"""
         if self.testRepoInit() is True:
             # stats
-            cmd = self.createCmd(f"snapshots")
+            cmd = self.createCmd("snapshots")
             runner = CmdRunner()
             runner.runCmd(cmd)
 
@@ -444,6 +452,42 @@ class Restic:
                     self.term.print("done ...", "YELLOW")
                 else:
                     self.term.print("Aborted ...", "YELLOW")
+
+    def rmFile(self, filename):
+        if os.path.exists(filename) is True:
+            os.remove(filename)
+
+    def checkBinFileRestic(self):
+        """Windows binary loaded?"""
+        if OSDetector.is_windows() is False:
+            return
+
+        # we have windows
+        file = self.getResticPath()
+        if file is None:
+            # we had to download it
+            github = GitHub("restic", "restic")
+            release_info = github.get_latest_release_info()
+
+            self.term.print("No executable restic found ...")
+            self.term.print("Will download it ...")
+
+            if release_info:
+                self.term.print(f"Version: {release_info['version']}")
+                self.term.print(f"URL: {release_info['url']}")
+                self.term.print(f"Published: {release_info['published_at']}")
+
+            windows_url = github.get_platform_download(Platform.WINDOWS, Architecture.AMD64)
+            filename = os.path.basename(windows_url)
+
+            output_file = os.path.normpath(os.path.join(self.binPath, filename))
+            github.download_file(windows_url, output_file)
+            github.unzip_file(output_file, self.binPath)
+
+            self.rmFile(output_file)
+
+            self.term.print("\nDone ... please restart the app ...")
+            sys.exit()
 
 
 @click.command(no_args_is_help=False)
@@ -508,7 +552,7 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     # restic.profileManagement()
     #
 
-    # restic.restore("test")
+    # restic.backup("test")
     # sys.exit()
 
     if profiles:
