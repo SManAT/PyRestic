@@ -24,6 +24,8 @@ dependencies = [
     'requests',
     'typing',
     'tqdm',
+    'pywin32',
+    'winshell',    
 ]
 
 [build-system]
