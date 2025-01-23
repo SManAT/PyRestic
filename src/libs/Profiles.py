@@ -223,7 +223,7 @@ class Profiles:
     def showProfileInfos(self, pname):
         """show some Informations about the profile"""
         self.term.print(f"\nProfile [{pname}]")
-        data = self.loadProfile(pname)
+        data = self._loadProfile(pname)
         for key, data in data.items():
             print(f"  {key}: {data}")
 
