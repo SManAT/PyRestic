@@ -552,8 +552,8 @@ def start(backup, restore, check, help, init, stats, profiles, snapshots, list):
     # restic.profileManagement()
     #
 
-    # restic.backup("test")
-    # sys.exit()
+    restic.backup("video")
+    sys.exit()
 
     if profiles:
         restic.profileManagement()

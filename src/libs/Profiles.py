@@ -1,6 +1,7 @@
 import questionary
 import logging
 import os
+import sys
 from questionary.prompts.common import Separator
 from questionary import Style
 
@@ -116,12 +117,14 @@ class Profiles:
     def loadProfile_and_setVariables(self, profile_name):
         """load config for a profile an set variables"""
         self.config = self._loadProfile(profile_name)
-        self.storagePath = os.path.normpath(self.config["storage"])
-        # exists?
-        self.createDir(self.storagePath)
-        self.createPwdFile()
-        self.createIncludeExcludeFiles(self.includeFile, self.excludeFile)
-        return self.config
+        if self.config is not False:
+            self.storagePath = os.path.normpath(self.config["storage"])
+            self.createDir(self.storagePath)
+            self.createPwdFile()
+            self.createIncludeExcludeFiles(self.includeFile, self.excludeFile)
+            return self.config
+        else:
+            sys.exit(-1)
 
     def createPwdFile(self):
         """create a password file from config"""
